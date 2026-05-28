@@ -1,15 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useState, useEffect } from 'react';
 import { type Budget } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { validateAmount } from '@/components/expenses/ExpenseForm';
 import { Wallet, Plus, AlertTriangle, X, CheckCircle } from 'lucide-react';
-import { useEffect } from 'react';
+import { createBudgetAction } from '@/app/dashboard/settings/actions';
 
 interface Props {
   initialBudgets: Budget[];
@@ -178,9 +176,7 @@ function ActiveBudgetWarning({ activeBudget, onContinue, onCancel }: ActiveBudge
 
 // ── Main Component ──────────────────────────────────────────
 export default function BudgetSection({ initialBudgets }: Props) {
-  const supabase = createClient();
   const { toast } = useToast();
-  const router = useRouter();
 
   const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
   const [showWarning, setShowWarning] = useState(false);
@@ -200,27 +196,22 @@ export default function BudgetSection({ initialBudgets }: Props) {
   async function handleSubmit(amount: string, startDate: string) {
     setSubmitting(true);
 
-    const { data, error } = await supabase.rpc('create_budget', {
-      p_amount:     parseFloat(amount),
-      p_start_date: startDate,
-    });
+    try {
+      const data = await createBudgetAction(parseFloat(amount), startDate);
 
-    if (error) {
-      console.error('[create_budget RPC]', error.message);
+      setBudgets(prev => [
+        data as Budget,
+        ...prev.map(b => b.end_date === null ? { ...b, end_date: startDate } : b),
+      ]);
+
+      toast('Budget baru berhasil dibuat.');
+      setShowForm(false);
+    } catch (err) {
+      console.error('[create_budget]', err);
       toast('Gagal membuat budget. Coba lagi.', 'error');
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    setBudgets(prev => [
-      data as Budget,
-      ...prev.map(b => b.end_date === null ? { ...b, end_date: startDate } : b),
-    ]);
-
-    toast('Budget baru berhasil dibuat.');
-    setShowForm(false);
-    setSubmitting(false);
-    router.refresh();
   }
 
   return (
@@ -307,4 +298,4 @@ export default function BudgetSection({ initialBudgets }: Props) {
       </p>
     </div>
   );
-}
+                }
