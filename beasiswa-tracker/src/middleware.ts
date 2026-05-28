@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_PATHS   = ['/login', '/register'];
-const PUBLIC_PREFIXES = ['/r/']; // shareable report links
+const PUBLIC_PREFIXES = ['/r/'];
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options?: object }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
@@ -26,7 +26,6 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getUser() — bukan getSession() — validasi ke server, tidak bisa di-spoof dari cookie
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError) {
@@ -42,7 +41,6 @@ export async function middleware(request: NextRequest) {
 
   if (isStaticAsset) return supabaseResponse;
 
-  // Tidak login + bukan auth page + bukan public link → redirect ke login
   if (!user && !isAuthPage && !isPublicPrefix) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
@@ -50,7 +48,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Login + di auth page → redirect ke dashboard (atau intended destination)
   if (user && isAuthPage) {
     const next = request.nextUrl.searchParams.get('next') ?? '/dashboard';
     const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
@@ -60,8 +57,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(dashUrl);
   }
 
-  // Admin route: cek role dari DB — hanya berjalan untuk /admin/* saja
-  // agar tidak memperlambat semua request user biasa
   if (user && isAdminRoute) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -70,7 +65,6 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (profile?.role !== 'admin') {
-      // Bukan admin → redirect ke dashboard tanpa expose error detail
       const dashUrl = request.nextUrl.clone();
       dashUrl.pathname = '/dashboard';
       dashUrl.search = '';
