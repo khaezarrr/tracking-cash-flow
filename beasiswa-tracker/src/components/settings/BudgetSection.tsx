@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { type Budget } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/utils';
@@ -179,6 +180,7 @@ function ActiveBudgetWarning({ activeBudget, onContinue, onCancel }: ActiveBudge
 export default function BudgetSection({ initialBudgets }: Props) {
   const supabase = createClient();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
   const [showWarning, setShowWarning] = useState(false);
@@ -189,9 +191,9 @@ export default function BudgetSection({ initialBudgets }: Props) {
 
   function handleNewBudgetClick() {
     if (activeBudget) {
-      setShowWarning(true);   // Ada budget aktif → tampil warning dulu
+      setShowWarning(true);
     } else {
-      setShowForm(true);      // Tidak ada → langsung form
+      setShowForm(true);
     }
   }
 
@@ -210,7 +212,6 @@ export default function BudgetSection({ initialBudgets }: Props) {
       return;
     }
 
-    // Satu update atomik: tutup budget lama + tambah budget baru di depan
     setBudgets(prev => [
       data as Budget,
       ...prev.map(b => b.end_date === null ? { ...b, end_date: startDate } : b),
@@ -219,6 +220,7 @@ export default function BudgetSection({ initialBudgets }: Props) {
     toast('Budget baru berhasil dibuat.');
     setShowForm(false);
     setSubmitting(false);
+    router.refresh();
   }
 
   return (
@@ -256,7 +258,6 @@ export default function BudgetSection({ initialBudgets }: Props) {
         />
       )}
 
-      {/* Riwayat budget — tanpa tombol edit/hapus */}
       {budgets.length === 0 ? (
         <div className="text-center py-8 text-gray-400">
           <Wallet className="w-8 h-8 mx-auto mb-3 opacity-40" aria-hidden="true" />
