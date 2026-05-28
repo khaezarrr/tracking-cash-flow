@@ -210,13 +210,11 @@ export default function BudgetSection({ initialBudgets }: Props) {
       return;
     }
 
-    // Tutup budget lama di state (set end_date = startDate)
-    setBudgets(prev => prev.map(b =>
-      b.end_date === null ? { ...b, end_date: startDate } : b
-    ));
-
-    // Tambah budget baru ke depan list
-    setBudgets(prev => [data as Budget, ...prev.filter(b => b.id !== (data as Budget).id)]);
+    // Satu update atomik: tutup budget lama + tambah budget baru di depan
+    setBudgets(prev => [
+      data as Budget,
+      ...prev.map(b => b.end_date === null ? { ...b, end_date: startDate } : b),
+    ]);
 
     toast('Budget baru berhasil dibuat.');
     setShowForm(false);
