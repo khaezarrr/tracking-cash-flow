@@ -170,19 +170,31 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
   }
 
   async function handleLoadMore() {
-    setLoadingMore(true);
+  setLoadingMore(true);
 
-    let query = supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .range(fetchOffset, fetchOffset + pageSize - 1);
+  let query = supabase
+    .from('expenses')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .range(fetchOffset, fetchOffset + pageSize - 1);
 
-    // Filter sama dengan server — hanya pengeluaran di periode budget aktif
-    if (activeBudgetStartDate) {
-      query = query.gte('date', activeBudgetStartDate);
-    }
+  if (activeBudgetStartDate) {
+    query = query.gte('created_at', activeBudgetStartDate);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[LoadMore]', error.message);
+    toast('Gagal memuat data tambahan.', 'error');
+  } else if (data) {
+    setExpenses(prev => [...prev, ...data]);
+    setFetchOffset(prev => prev + data.length);
+  }
+  setLoadingMore(false);
+  }
 
     const { data, error } = await query;
 
