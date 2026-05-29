@@ -15,19 +15,18 @@ interface UseExpensesOptions {
   userId: string;
   totalCount: number;
   pageSize: number;
+  activeBudgetStartDate: string | null;
 }
 
-export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: UseExpensesOptions) {
+export function useExpenses({ initialExpenses, userId, totalCount, pageSize, activeBudgetStartDate }: UseExpensesOptions) {
   const supabase = createClient();
   const { toast } = useToast();
 
-  // ─── Data state ───────────────────────────────────────────────
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [serverTotal, setServerTotal] = useState(totalCount);
   const [fetchOffset, setFetchOffset] = useState(initialExpenses.length);
   const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
 
-  // ─── UI state ─────────────────────────────────────────────────
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<Expense | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -37,7 +36,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState<Category | 'Semua'>('Semua');
 
-  // ─── Derived ──────────────────────────────────────────────────
   const filtered = useMemo(() => expenses.filter(e => {
     const matchSearch =
       search === '' ||
@@ -52,9 +50,10 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     [filtered],
   );
 
-  const hasMore = fetchOffset < serverTotal;
+  // Hitung hasMore dari jumlah real (bukan serverTotal yang bisa ter-inflate optimistic)
+  const realCount = expenses.filter(e => !e.id.startsWith('temp-')).length;
+  const hasMore = realCount < serverTotal;
 
-  // ─── Optimistic helpers ───────────────────────────────────────
   function markOptimistic(id: string) {
     setOptimisticIds(prev => new Set(prev).add(id));
   }
@@ -62,7 +61,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     setOptimisticIds(prev => { const s = new Set(prev); s.delete(id); return s; });
   }
 
-  // ─── Shared payload builder ───────────────────────────────────
   function buildPayload(values: ExpenseFormValues, amount: number) {
     return {
       user_id: userId,
@@ -73,7 +71,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     };
   }
 
-  // ─── Insert ───────────────────────────────────────────────────
   async function handleInsert(values: ExpenseFormValues, amount: number) {
     const tempId = `temp-${Date.now()}`;
     const payload = buildPayload(values, amount);
@@ -85,7 +82,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     };
 
     setExpenses(prev => [optimistic, ...prev]);
-    setServerTotal(prev => prev + 1);
+    // Tidak increment serverTotal — biarkan count tetap dari server
     markOptimistic(tempId);
     setShowForm(false);
 
@@ -95,15 +92,15 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     if (error) {
       console.error('[Insert expense]', error.message);
       setExpenses(prev => prev.filter(e => e.id !== tempId));
-      setServerTotal(prev => prev - 1); // rollback
       toast('Gagal menambah pengeluaran. Coba lagi.', 'error');
     } else if (data) {
       setExpenses(prev => prev.map(e => e.id === tempId ? data : e));
+      setServerTotal(prev => prev + 1); // increment hanya setelah confirmed
+      setFetchOffset(prev => prev + 1);
       toast('Pengeluaran berhasil ditambahkan.');
     }
   }
 
-  // ─── Update ───────────────────────────────────────────────────
   async function handleUpdate(target: Expense, values: ExpenseFormValues, amount: number) {
     const payload = buildPayload(values, amount);
     const previous = expenses.find(e => e.id === target.id);
@@ -120,7 +117,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
 
     if (error) {
       console.error('[Update expense]', error.message);
-      if (previous) setExpenses(prev => prev.map(e => e.id === target.id ? previous : e)); // rollback
+      if (previous) setExpenses(prev => prev.map(e => e.id === target.id ? previous : e));
       toast('Gagal menyimpan perubahan. Perubahan dibatalkan.', 'error');
     } else if (data) {
       setExpenses(prev => prev.map(e => e.id === data.id ? data : e));
@@ -128,7 +125,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     }
   }
 
-  // ─── Submit dispatcher ────────────────────────────────────────
   async function handleSubmit(values: ExpenseFormValues) {
     const amountResult = validateAmount(values.amount);
     if (!amountResult.valid) return;
@@ -142,7 +138,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     setSubmitting(false);
   }
 
-  // ─── Delete ───────────────────────────────────────────────────
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -152,6 +147,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
 
     setExpenses(prev => prev.filter(e => e.id !== backup.id));
     setServerTotal(prev => prev - 1);
+    setFetchOffset(prev => prev - 1);
     setDeleteTarget(null);
 
     const { error } = await supabase.from('expenses').delete().eq('id', backup.id);
@@ -163,7 +159,8 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
         next.splice(backupIndex, 0, backup);
         return next;
       });
-      setServerTotal(prev => prev + 1); // rollback
+      setServerTotal(prev => prev + 1);
+      setFetchOffset(prev => prev + 1);
       toast('Gagal menghapus pengeluaran.', 'error');
     } else {
       toast('Pengeluaran dihapus.');
@@ -172,15 +169,22 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     setDeleting(false);
   }
 
-  // ─── Load more ────────────────────────────────────────────────
   async function handleLoadMore() {
     setLoadingMore(true);
-    const { data, error } = await supabase
+
+    let query = supabase
       .from('expenses')
       .select('*')
       .eq('user_id', userId)
       .order('date', { ascending: false })
       .range(fetchOffset, fetchOffset + pageSize - 1);
+
+    // Filter sama dengan server — hanya pengeluaran di periode budget aktif
+    if (activeBudgetStartDate) {
+      query = query.gte('date', activeBudgetStartDate);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[LoadMore]', error.message);
@@ -192,7 +196,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     setLoadingMore(false);
   }
 
-  // ─── Form actions ─────────────────────────────────────────────
   function openAddForm() {
     setEditTarget(null);
     setShowForm(true);
@@ -209,7 +212,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
   }
 
   return {
-    // Data
     expenses,
     filtered,
     totalFiltered,
@@ -217,8 +219,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     fetchOffset,
     optimisticIds,
     hasMore,
-
-    // UI state
     showForm,
     editTarget,
     submitting,
@@ -227,8 +227,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize }: U
     loadingMore,
     search,
     filterCat,
-
-    // Actions
     openAddForm,
     openEditForm,
     closeForm,
