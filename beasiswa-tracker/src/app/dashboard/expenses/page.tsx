@@ -10,7 +10,6 @@ export default async function ExpensesPage() {
 
   if (!user) redirect('/login');
 
-  // Ambil budget aktif untuk filter tanggal
   const { data: activeBudget } = await supabase
     .from('budgets')
     .select('start_date')
@@ -18,7 +17,6 @@ export default async function ExpensesPage() {
     .is('end_date', null)
     .single();
 
-  // Bangun query expenses
   let query = supabase
     .from('expenses')
     .select('*', { count: 'exact' })
@@ -26,7 +24,6 @@ export default async function ExpensesPage() {
     .order('date', { ascending: false })
     .limit(PAGE_SIZE);
 
-  // Filter hanya pengeluaran sejak start_date budget aktif
   if (activeBudget?.start_date) {
     query = query.gte('date', activeBudget.start_date);
   }
@@ -44,6 +41,7 @@ export default async function ExpensesPage() {
         userId={user.id}
         totalCount={count ?? 0}
         pageSize={PAGE_SIZE}
+        activeBudgetStartDate={activeBudget?.start_date ?? null}
       />
     </div>
   );
