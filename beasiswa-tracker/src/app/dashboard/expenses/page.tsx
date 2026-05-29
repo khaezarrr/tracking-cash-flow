@@ -12,7 +12,7 @@ export default async function ExpensesPage() {
 
   const { data: activeBudget } = await supabase
     .from('budgets')
-    .select('start_date')
+    .select('start_date, created_at')
     .eq('user_id', user.id)
     .is('end_date', null)
     .single();
@@ -22,10 +22,12 @@ export default async function ExpensesPage() {
     .select('*', { count: 'exact' })
     .eq('user_id', user.id)
     .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
 
-  if (activeBudget?.start_date) {
-    query = query.gte('date', activeBudget.start_date);
+  // Filter pakai created_at budget — lebih akurat dari start_date
+  if (activeBudget?.created_at) {
+    query = query.gte('created_at', activeBudget.created_at);
   }
 
   const { data: expenses, error, count } = await query;
@@ -41,7 +43,7 @@ export default async function ExpensesPage() {
         userId={user.id}
         totalCount={count ?? 0}
         pageSize={PAGE_SIZE}
-        activeBudgetStartDate={activeBudget?.start_date ?? null}
+        activeBudgetStartDate={activeBudget?.created_at ?? null}
       />
     </div>
   );
