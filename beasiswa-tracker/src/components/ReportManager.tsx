@@ -164,7 +164,8 @@ export default function ReportManager({ initialReports, userId, activeBudgetStar
         user_id: userId,
         title: title.trim().slice(0, 200),
         date_from: activeBudgetCreatedAt,
-        date_to: new Date().toISOString(),
+        date_to: new Date().toISOString().split('T')[0],
+        budget_created_at: activeBudgetCreatedAt,
       })
       .select()
       .single();
