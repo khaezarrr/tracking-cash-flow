@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { type Report } from '@/lib/types';
+import { type Report, type Budget } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 import { Plus, Link2, X, Copy, Check, ExternalLink, Trash2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/Toast';
@@ -12,21 +12,37 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
 interface Props {
   initialReports: Report[];
   userId: string;
-  activeBudgetStartDate: string | null;
-  activeBudgetCreatedAt: string | null;
+  allBudgets: Budget[];
 }
 
 interface ReportFormModalProps {
   submitting: boolean;
-  activeBudgetStartDate: string | null;
-  onSubmit: (title: string) => void;
+  allBudgets: Budget[];
+  onSubmit: (title: string, budget: Budget) => void;
   onClose: () => void;
 }
 
-function ReportFormModal({ submitting, activeBudgetStartDate, onSubmit, onClose }: ReportFormModalProps) {
+/** Human-readable label for the dropdown option. */
+function budgetLabel(budget: Budget): string {
+  const start = formatDate(budget.start_date);
+  if (budget.end_date === null) {
+    return `Budget Aktif — mulai ${start}`;
+  }
+  return `${start} – ${formatDate(budget.end_date)}`;
+}
+
+function ReportFormModal({ submitting, allBudgets, onSubmit, onClose }: ReportFormModalProps) {
   const trapRef = useFocusTrap(true);
   const [title, setTitle] = useState('');
   const [formError, setFormError] = useState('');
+
+  // Default to the active budget (end_date === null); fall back to most recent.
+  const defaultBudget = allBudgets.find(b => b.end_date === null) ?? allBudgets[0] ?? null;
+  const [selectedId, setSelectedId] = useState<string>(defaultBudget?.id ?? '');
+
+  const selectedBudget = allBudgets.find(b => b.id === selectedId) ?? null;
+  const today = new Date().toISOString().split('T')[0];
+  const periodEnd = selectedBudget?.end_date ?? today;
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -40,11 +56,9 @@ function ReportFormModal({ submitting, activeBudgetStartDate, onSubmit, onClose 
     e.preventDefault();
     setFormError('');
     if (!title.trim()) { setFormError('Judul laporan wajib diisi.'); return; }
-    if (!activeBudgetStartDate) { setFormError('Tidak ada budget aktif. Buat budget terlebih dahulu.'); return; }
-    onSubmit(title);
+    if (!selectedBudget) { setFormError('Pilih budget untuk laporan ini.'); return; }
+    onSubmit(title, selectedBudget);
   }
-
-  const today = new Date().toISOString().split('T')[0];
 
   return (
     <div
@@ -69,6 +83,7 @@ function ReportFormModal({ submitting, activeBudgetStartDate, onSubmit, onClose 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate>
+          {/* Report title */}
           <div>
             <label htmlFor="report-title" className="label">Judul Laporan</label>
             <input
@@ -83,20 +98,46 @@ function ReportFormModal({ submitting, activeBudgetStartDate, onSubmit, onClose 
             />
           </div>
 
-          {activeBudgetStartDate ? (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-600">
-              <p className="font-medium text-gray-700 mb-1">Periode laporan (otomatis dari budget aktif):</p>
-              <p>
-                <time dateTime={activeBudgetStartDate}>{formatDate(activeBudgetStartDate)}</time>
-                {' — '}
-                <time dateTime={today}>{formatDate(today)}</time>
-              </p>
-            </div>
-          ) : (
+          {allBudgets.length === 0 ? (
+            /* No budgets at all */
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
-              <p>Tidak ada budget aktif. Buat budget terlebih dahulu di halaman Pengaturan.</p>
+              <p>Tidak ada budget. Buat budget terlebih dahulu di halaman Pengaturan.</p>
             </div>
+          ) : (
+            <>
+              {/* Budget selector */}
+              <div>
+                <label htmlFor="budget-select" className="label">Budget</label>
+                <select
+                  id="budget-select"
+                  className="input"
+                  value={selectedId}
+                  onChange={e => setSelectedId(e.target.value)}
+                  disabled={submitting}
+                >
+                  {allBudgets.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {budgetLabel(b)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Auto-derived period */}
+              {selectedBudget && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-600">
+                  <p className="font-medium text-gray-700 mb-1">
+                    Periode laporan (otomatis dari budget yang dipilih):
+                  </p>
+                  <p>
+                    <time dateTime={selectedBudget.start_date}>{formatDate(selectedBudget.start_date)}</time>
+                    {' — '}
+                    <time dateTime={periodEnd}>{formatDate(periodEnd)}</time>
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {formError && (
@@ -111,7 +152,7 @@ function ReportFormModal({ submitting, activeBudgetStartDate, onSubmit, onClose 
             </button>
             <button
               type="submit"
-              disabled={submitting || !activeBudgetStartDate}
+              disabled={submitting || !selectedBudget}
               className="btn-primary flex-1 disabled:opacity-50"
             >
               {submitting ? 'Membuat...' : 'Buat Laporan'}
@@ -123,7 +164,7 @@ function ReportFormModal({ submitting, activeBudgetStartDate, onSubmit, onClose 
   );
 }
 
-export default function ReportManager({ initialReports, userId, activeBudgetStartDate, activeBudgetCreatedAt }: Props) {
+export default function ReportManager({ initialReports, userId, allBudgets }: Props) {
   const supabase = createClient();
   const { toast } = useToast();
 
@@ -136,22 +177,22 @@ export default function ReportManager({ initialReports, userId, activeBudgetStar
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
-  async function handleCreate(title: string) {
-    if (!activeBudgetStartDate || !activeBudgetCreatedAt) {
-      toast('Tidak ada budget aktif.', 'error');
-      return;
-    }
-
+  async function handleCreate(title: string, budget: Budget) {
     setSubmitting(true);
 
     const today = new Date().toISOString().split('T')[0];
+    // Preserve existing convention: date_from = budget.created_at (timestamp),
+    // so the public RPC expense-filter still matches the correct budget.
+    const dateFrom = budget.created_at;
+    const dateTo   = budget.end_date ?? today;
+
     const tempId = `temp-${Date.now()}`;
     const optimistic: Report = {
       id: tempId,
       user_id: userId,
       title: title.trim(),
-      date_from: activeBudgetStartDate,
-      date_to: today,
+      date_from: dateFrom,
+      date_to: dateTo,
       token: '...',
       created_at: new Date().toISOString(),
     };
@@ -163,9 +204,9 @@ export default function ReportManager({ initialReports, userId, activeBudgetStar
       .insert({
         user_id: userId,
         title: title.trim().slice(0, 200),
-        date_from: activeBudgetCreatedAt,
-        date_to: new Date().toISOString().split('T')[0],
-        budget_created_at: activeBudgetCreatedAt,
+        date_from: dateFrom,
+        date_to: dateTo,
+        budget_created_at: dateFrom,
       })
       .select()
       .single();
@@ -239,13 +280,13 @@ export default function ReportManager({ initialReports, userId, activeBudgetStar
 
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700" role="note">
         <strong>Cara kerja link laporan:</strong> Setiap laporan menghasilkan link unik yang bisa dibuka
-        siapa saja tanpa login. Link menampilkan pengeluaran dari periode budget aktif, hanya bisa dibaca.
+        siapa saja tanpa login. Link menampilkan pengeluaran dari periode budget yang dipilih, hanya bisa dibaca.
       </div>
 
       {showForm && (
         <ReportFormModal
           submitting={submitting}
-          activeBudgetStartDate={activeBudgetStartDate}
+          allBudgets={allBudgets}
           onSubmit={handleCreate}
           onClose={() => setShowForm(false)}
         />
@@ -334,4 +375,4 @@ export default function ReportManager({ initialReports, userId, activeBudgetStar
       )}
     </div>
   );
-      }
+}
