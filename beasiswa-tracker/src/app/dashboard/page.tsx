@@ -14,18 +14,6 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  /**
-   * Fetch budget dulu, baru fetch expenses.
-   *
-   * Alasan sequential (bukan Promise.all):
-   * Kita perlu budget.start_date sebelum bisa query expenses dengan filter
-   * `date >= start_date`. Kalau parallel, kita tidak tahu start_date saat
-   * query expenses dimulai — terpaksa fetch semua lalu buang di JavaScript.
-   *
-   * Tradeoff: satu extra round-trip ke DB.
-   * Benefit: expenses yang difetch 100% relevan, tidak ada data yang dibuang.
-   * Untuk user dengan ribuan transaksi lama ini signifikan.
-   */
   const { data: budget, error: budgetError } = await supabase
     .from('budgets')
     .select('*')
@@ -34,23 +22,20 @@ export default async function DashboardPage() {
     .single();
 
   if (budgetError && budgetError.code !== 'PGRST116') {
-    // PGRST116 = "no rows returned" — normal kalau belum ada budget
     console.error('[Dashboard] budget fetch:', budgetError.message);
   }
 
   const activeBudget = budget as Budget | null;
 
-  // Kalau ada budget aktif: filter dari start_date agar tidak fetch data lama yang tidak terpakai.
-  // Kalau tidak ada: ambil 500 terbaru sebagai fallback untuk chart & recent list.
   const expensesQuery = supabase
     .from('expenses')
-    .select('id, amount, category, description, date')
+    .select('id, amount, category, description, date, created_at')
     .eq('user_id', user.id)
     .order('date', { ascending: false })
     .limit(500);
 
   if (activeBudget) {
-  expensesQuery.gte('created_at', activeBudget.created_at);
+    expensesQuery.gte('created_at', activeBudget.created_at);
   }
 
   const { data: expensesData, error: expensesError } = await expensesQuery;
@@ -65,8 +50,6 @@ export default async function DashboardPage() {
     .filter(e => e.date.startsWith(thisMonth))
     .reduce((s, e) => s + e.amount, 0);
 
-  // ── Budget calculations ──────────────────────────────────
-  // Semua expenses sudah difilter dari start_date — tidak perlu filter ulang
   let budgetCalc: {
     spentInBudget: number;
     remaining: number;
@@ -77,7 +60,7 @@ export default async function DashboardPage() {
   } | null = null;
 
   if (activeBudget) {
-    const spentInBudget  = totalSpent; // semua expenses sudah dari start_date
+    const spentInBudget  = totalSpent;
     const remaining      = activeBudget.amount - spentInBudget;
     const remainingPct   = Math.max(0, (remaining / activeBudget.amount) * 100);
     const today          = new Date();
@@ -104,7 +87,6 @@ export default async function DashboardPage() {
     };
   }
 
-  // ── Category breakdown & recent list ────────────────────
   const byCategory: Record<string, number> = {};
   expenses.forEach(e => { byCategory[e.category] = (byCategory[e.category] ?? 0) + e.amount; });
   const sortedCategories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
