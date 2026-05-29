@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { type Report } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
-import { Plus, Link2, X, Copy, Check, ExternalLink, Trash2 } from 'lucide-react';
+import { Plus, Link2, X, Copy, Check, ExternalLink, Trash2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/Toast';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -12,21 +12,20 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
 interface Props {
   initialReports: Report[];
   userId: string;
+  activeBudgetStartDate: string | null;
+  activeBudgetCreatedAt: string | null;
 }
 
-const emptyForm = { title: '', date_from: '', date_to: '' };
-
-// Fix #7: userId dihapus dari props ReportFormModal karena tidak pernah dipakai di sini.
-// userId hanya dibutuhkan di ReportManager saat insert — sesuai dengan tempatnya.
 interface ReportFormModalProps {
   submitting: boolean;
-  onSubmit: (form: typeof emptyForm) => void;
+  activeBudgetStartDate: string | null;
+  onSubmit: (title: string) => void;
   onClose: () => void;
 }
 
-function ReportFormModal({ submitting, onSubmit, onClose }: ReportFormModalProps) {
+function ReportFormModal({ submitting, activeBudgetStartDate, onSubmit, onClose }: ReportFormModalProps) {
   const trapRef = useFocusTrap(true);
-  const [form, setForm] = useState(emptyForm);
+  const [title, setTitle] = useState('');
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
@@ -40,11 +39,12 @@ function ReportFormModal({ submitting, onSubmit, onClose }: ReportFormModalProps
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError('');
-    if (!form.title.trim())               { setFormError('Judul laporan wajib diisi.'); return; }
-    if (!form.date_from || !form.date_to) { setFormError('Tanggal mulai dan selesai wajib diisi.'); return; }
-    if (form.date_to < form.date_from)    { setFormError('Tanggal selesai harus setelah tanggal mulai.'); return; }
-    onSubmit(form);
+    if (!title.trim()) { setFormError('Judul laporan wajib diisi.'); return; }
+    if (!activeBudgetStartDate) { setFormError('Tidak ada budget aktif. Buat budget terlebih dahulu.'); return; }
+    onSubmit(title);
   }
+
+  const today = new Date().toISOString().split('T')[0];
 
   return (
     <div
@@ -54,7 +54,6 @@ function ReportFormModal({ submitting, onSubmit, onClose }: ReportFormModalProps
       aria-labelledby="report-form-title"
     >
       <div className="absolute inset-0" onClick={!submitting ? onClose : undefined} aria-hidden="true" />
-
       <div ref={trapRef} className="relative bg-white rounded-2xl w-full max-w-md shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 id="report-form-title" className="font-semibold text-gray-900">Buat Laporan Baru</h2>
@@ -78,37 +77,27 @@ function ReportFormModal({ submitting, onSubmit, onClose }: ReportFormModalProps
               className="input"
               placeholder="Laporan Semester Ganjil 2024/2025"
               maxLength={200}
-              value={form.title}
-              onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setFormError(''); }}
+              value={title}
+              onChange={e => { setTitle(e.target.value); setFormError(''); }}
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="report-date-from" className="label">Tanggal Mulai</label>
-              <input
-                id="report-date-from"
-                type="date"
-                className="input"
-                value={form.date_from}
-                onChange={e => { setForm(f => ({ ...f, date_from: e.target.value })); setFormError(''); }}
-                required
-              />
+          {activeBudgetStartDate ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-600">
+              <p className="font-medium text-gray-700 mb-1">Periode laporan (otomatis dari budget aktif):</p>
+              <p>
+                <time dateTime={activeBudgetStartDate}>{formatDate(activeBudgetStartDate)}</time>
+                {' — '}
+                <time dateTime={today}>{formatDate(today)}</time>
+              </p>
             </div>
-            <div>
-              <label htmlFor="report-date-to" className="label">Tanggal Selesai</label>
-              <input
-                id="report-date-to"
-                type="date"
-                className="input"
-                value={form.date_to}
-                min={form.date_from || undefined}
-                onChange={e => { setForm(f => ({ ...f, date_to: e.target.value })); setFormError(''); }}
-                required
-              />
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <p>Tidak ada budget aktif. Buat budget terlebih dahulu di halaman Pengaturan.</p>
             </div>
-          </div>
+          )}
 
           {formError && (
             <div role="alert" className="bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2 rounded-lg">
@@ -120,7 +109,11 @@ function ReportFormModal({ submitting, onSubmit, onClose }: ReportFormModalProps
             <button type="button" onClick={onClose} disabled={submitting} className="btn-secondary flex-1">
               Batal
             </button>
-            <button type="submit" disabled={submitting} className="btn-primary flex-1">
+            <button
+              type="submit"
+              disabled={submitting || !activeBudgetStartDate}
+              className="btn-primary flex-1 disabled:opacity-50"
+            >
               {submitting ? 'Membuat...' : 'Buat Laporan'}
             </button>
           </div>
@@ -130,7 +123,7 @@ function ReportFormModal({ submitting, onSubmit, onClose }: ReportFormModalProps
   );
 }
 
-export default function ReportManager({ initialReports, userId }: Props) {
+export default function ReportManager({ initialReports, userId, activeBudgetStartDate, activeBudgetCreatedAt }: Props) {
   const supabase = createClient();
   const { toast } = useToast();
 
@@ -143,16 +136,22 @@ export default function ReportManager({ initialReports, userId }: Props) {
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
-  async function handleCreate(form: typeof emptyForm) {
+  async function handleCreate(title: string) {
+    if (!activeBudgetStartDate || !activeBudgetCreatedAt) {
+      toast('Tidak ada budget aktif.', 'error');
+      return;
+    }
+
     setSubmitting(true);
 
+    const today = new Date().toISOString().split('T')[0];
     const tempId = `temp-${Date.now()}`;
     const optimistic: Report = {
       id: tempId,
       user_id: userId,
-      title: form.title.trim(),
-      date_from: form.date_from,
-      date_to: form.date_to,
+      title: title.trim(),
+      date_from: activeBudgetStartDate,
+      date_to: today,
       token: '...',
       created_at: new Date().toISOString(),
     };
@@ -163,9 +162,9 @@ export default function ReportManager({ initialReports, userId }: Props) {
       .from('reports')
       .insert({
         user_id: userId,
-        title: form.title.trim().slice(0, 200),
-        date_from: form.date_from,
-        date_to: form.date_to,
+        title: title.trim().slice(0, 200),
+        date_from: activeBudgetCreatedAt,
+        date_to: new Date().toISOString(),
       })
       .select()
       .single();
@@ -239,13 +238,13 @@ export default function ReportManager({ initialReports, userId }: Props) {
 
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700" role="note">
         <strong>Cara kerja link laporan:</strong> Setiap laporan menghasilkan link unik yang bisa dibuka
-        siapa saja tanpa login. Link menampilkan pengeluaran dalam rentang tanggal yang dipilih, hanya bisa dibaca.
+        siapa saja tanpa login. Link menampilkan pengeluaran dari periode budget aktif, hanya bisa dibaca.
       </div>
 
-      {/* Fix #7: tidak ada userId di sini */}
       {showForm && (
         <ReportFormModal
           submitting={submitting}
+          activeBudgetStartDate={activeBudgetStartDate}
           onSubmit={handleCreate}
           onClose={() => setShowForm(false)}
         />
@@ -334,4 +333,4 @@ export default function ReportManager({ initialReports, userId }: Props) {
       )}
     </div>
   );
-}
+      }
