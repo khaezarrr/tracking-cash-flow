@@ -15,6 +15,7 @@ export async function createBudgetAction(amount: number, startDate: string) {
 
   revalidatePath('/dashboard');
   revalidatePath('/dashboard/settings');
+  revalidatePath('/dashboard/expenses');
 
   return data;
 }
