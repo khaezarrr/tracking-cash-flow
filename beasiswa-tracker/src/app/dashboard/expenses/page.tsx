@@ -8,18 +8,31 @@ export default async function ExpensesPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Fix #1: explicit null check
   if (!user) redirect('/login');
 
-  // Fix #3: server-side limit, tidak ambil semua sekaligus
-  const { data: expenses, error, count } = await supabase
+  // Ambil budget aktif untuk filter tanggal
+  const { data: activeBudget } = await supabase
+    .from('budgets')
+    .select('start_date')
+    .eq('user_id', user.id)
+    .is('end_date', null)
+    .single();
+
+  // Bangun query expenses
+  let query = supabase
     .from('expenses')
     .select('*', { count: 'exact' })
     .eq('user_id', user.id)
     .order('date', { ascending: false })
     .limit(PAGE_SIZE);
 
-  // Fix #2: explicit error handling
+  // Filter hanya pengeluaran sejak start_date budget aktif
+  if (activeBudget?.start_date) {
+    query = query.gte('date', activeBudget.start_date);
+  }
+
+  const { data: expenses, error, count } = await query;
+
   if (error) {
     console.error('[Expenses] Failed to fetch:', error.message);
   }
