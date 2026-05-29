@@ -50,7 +50,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
     [filtered],
   );
 
-  // Hitung hasMore dari jumlah real (bukan serverTotal yang bisa ter-inflate optimistic)
   const realCount = expenses.filter(e => !e.id.startsWith('temp-')).length;
   const hasMore = realCount < serverTotal;
 
@@ -82,7 +81,6 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
     };
 
     setExpenses(prev => [optimistic, ...prev]);
-    // Tidak increment serverTotal — biarkan count tetap dari server
     markOptimistic(tempId);
     setShowForm(false);
 
@@ -95,7 +93,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
       toast('Gagal menambah pengeluaran. Coba lagi.', 'error');
     } else if (data) {
       setExpenses(prev => prev.map(e => e.id === tempId ? data : e));
-      setServerTotal(prev => prev + 1); // increment hanya setelah confirmed
+      setServerTotal(prev => prev + 1);
       setFetchOffset(prev => prev + 1);
       toast('Pengeluaran berhasil ditambahkan.');
     }
@@ -170,31 +168,19 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
   }
 
   async function handleLoadMore() {
-  setLoadingMore(true);
+    setLoadingMore(true);
 
-  let query = supabase
-    .from('expenses')
-    .select('*')
-    .eq('user_id', userId)
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .range(fetchOffset, fetchOffset + pageSize - 1);
+    let query = supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(fetchOffset, fetchOffset + pageSize - 1);
 
-  if (activeBudgetStartDate) {
-    query = query.gte('created_at', activeBudgetStartDate);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('[LoadMore]', error.message);
-    toast('Gagal memuat data tambahan.', 'error');
-  } else if (data) {
-    setExpenses(prev => [...prev, ...data]);
-    setFetchOffset(prev => prev + data.length);
-  }
-  setLoadingMore(false);
-  }
+    if (activeBudgetStartDate) {
+      query = query.gte('created_at', activeBudgetStartDate);
+    }
 
     const { data, error } = await query;
 
