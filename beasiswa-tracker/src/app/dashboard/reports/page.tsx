@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import ReportManager from '@/components/ReportManager';
+import { type Budget } from '@/lib/types';
 
 export default async function ReportsPage() {
   const supabase = createClient();
@@ -8,7 +9,7 @@ export default async function ReportsPage() {
 
   if (!user) redirect('/login');
 
-  const [{ data: reports, error }, { data: activeBudget }] = await Promise.all([
+  const [{ data: reports, error }, { data: budgets }] = await Promise.all([
     supabase
       .from('reports')
       .select('*')
@@ -16,10 +17,12 @@ export default async function ReportsPage() {
       .order('created_at', { ascending: false }),
     supabase
       .from('budgets')
-      .select('start_date, created_at')
+      .select('id, amount, start_date, end_date, created_at')
       .eq('user_id', user.id)
-      .is('end_date', null)
-      .single(),
+      // Active budget (end_date IS NULL) sorts first because NULL sorts last in ASC,
+      // so we order DESC to flip: active (NULL end_date) comes first.
+      .order('end_date', { ascending: false, nullsFirst: true })
+      .order('created_at', { ascending: false }),
   ]);
 
   if (error) {
@@ -31,8 +34,7 @@ export default async function ReportsPage() {
       <ReportManager
         initialReports={reports ?? []}
         userId={user.id}
-        activeBudgetStartDate={activeBudget?.start_date ?? null}
-        activeBudgetCreatedAt={activeBudget?.created_at ?? null}
+        allBudgets={(budgets ?? []) as Budget[]}
       />
     </div>
   );
