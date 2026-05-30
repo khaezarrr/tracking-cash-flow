@@ -200,16 +200,16 @@ export default function ReportManager({ initialReports, userId, allBudgets }: Pr
     setShowForm(false);
 
     const { data, error } = await supabase
-      .from('reports')
-      .insert({
-        user_id: userId,
-        title: title.trim().slice(0, 200),
-        date_from: dateFrom,
-        date_to: dateTo,
-        budget_created_at: dateFrom,
-      })
-      .select()
-      .single();
+  .from('reports')
+  .insert({
+    user_id: userId,
+    title: title.trim().slice(0, 200),
+    date_from: budget.start_date,        
+    date_to: new Date().toISOString().split('T')[0],
+    budget_created_at: budget.created_at,
+  })
+  .select()
+  .single();
 
     if (error) {
       console.error('[Create report]', error.message);
