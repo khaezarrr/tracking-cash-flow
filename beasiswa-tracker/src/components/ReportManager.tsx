@@ -183,7 +183,7 @@ export default function ReportManager({ initialReports, userId, allBudgets }: Pr
     const today = new Date().toISOString().split('T')[0];
     // Preserve existing convention: date_from = budget.created_at (timestamp),
     // so the public RPC expense-filter still matches the correct budget.
-    const dateFrom = budget.created_at;
+    const dateFrom = budget.start_date;  
     const dateTo   = budget.end_date ?? today;
 
     const tempId = `temp-${Date.now()}`;
