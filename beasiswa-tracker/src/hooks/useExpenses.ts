@@ -90,7 +90,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
     if (error) {
       console.error('[Insert expense]', error.message);
       setExpenses(prev => prev.filter(e => e.id !== tempId));
-      toast('Gagal menambah pengeluaran. Coba lagi.', 'error');
+      toast('Gagal menambah pengeluaran. Pastikan semua data sudah benar.', 'error');
     } else if (data) {
       setExpenses(prev => prev.map(e => e.id === tempId ? data : e));
       setServerTotal(prev => prev + 1);
@@ -116,7 +116,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
     if (error) {
       console.error('[Update expense]', error.message);
       if (previous) setExpenses(prev => prev.map(e => e.id === target.id ? previous : e));
-      toast('Gagal menyimpan perubahan. Perubahan dibatalkan.', 'error');
+      toast('Gagal menyimpan perubahan. Silakan coba lagi.', 'error');
     } else if (data) {
       setExpenses(prev => prev.map(e => e.id === data.id ? data : e));
       toast('Pengeluaran berhasil diperbarui.');
@@ -159,7 +159,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
       });
       setServerTotal(prev => prev + 1);
       setFetchOffset(prev => prev + 1);
-      toast('Gagal menghapus pengeluaran.', 'error');
+      toast('Gagal menghapus pengeluaran. Silakan coba lagi.', 'error');
     } else {
       toast('Pengeluaran dihapus.');
     }
@@ -186,7 +186,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
 
     if (error) {
       console.error('[LoadMore]', error.message);
-      toast('Gagal memuat data tambahan.', 'error');
+      toast('Gagal memuat data. Periksa koneksi internet kamu.', 'error');
     } else if (data) {
       setExpenses(prev => [...prev, ...data]);
       setFetchOffset(prev => prev + data.length);
