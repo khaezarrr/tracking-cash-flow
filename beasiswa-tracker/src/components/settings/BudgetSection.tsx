@@ -5,7 +5,6 @@ import { type Budget } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { validateAmount } from '@/components/expenses/ExpenseForm';
 import { Wallet, Plus, AlertTriangle, X, CheckCircle } from 'lucide-react';
 import { createBudgetAction } from '@/app/dashboard/settings/actions';
 
@@ -20,9 +19,15 @@ interface BudgetFormModalProps {
   onClose: () => void;
 }
 
+function formatInputRupiah(digits: string): string {
+  if (!digits) return '';
+  return new Intl.NumberFormat('id-ID').format(Number(digits));
+}
+
 function BudgetFormModal({ submitting, onSubmit, onClose }: BudgetFormModalProps) {
   const trapRef = useFocusTrap(true);
-  const [amount, setAmount] = useState('');
+  const [displayAmount, setDisplayAmount] = useState('');
+  const [rawAmount, setRawAmount] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [formError, setFormError] = useState('');
 
@@ -34,13 +39,25 @@ function BudgetFormModal({ submitting, onSubmit, onClose }: BudgetFormModalProps
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose, submitting]);
 
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, '');
+    setRawAmount(digits);
+    setDisplayAmount(formatInputRupiah(digits));
+    setFormError('');
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError('');
-    const validation = validateAmount(amount);
-    if (!validation.valid) { setFormError(validation.message); return; }
-    if (!startDate)        { setFormError('Tanggal mulai wajib diisi.'); return; }
-    onSubmit(amount, startDate);
+    if (!rawAmount || Number(rawAmount) <= 0) {
+      setFormError('Jumlah dana harus lebih dari 0.');
+      return;
+    }
+    if (!startDate) {
+      setFormError('Tanggal mulai wajib diisi.');
+      return;
+    }
+    onSubmit(rawAmount, startDate);
   }
 
   return (
@@ -66,16 +83,20 @@ function BudgetFormModal({ submitting, onSubmit, onClose }: BudgetFormModalProps
         <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate>
           <div>
             <label htmlFor="budget-amount" className="label">Dana Beasiswa (Rp)</label>
-            <input
-              id="budget-amount"
-              type="number" className="input"
-              placeholder="Contoh: 3600000"
-              min="1" step="1"
-              value={amount}
-              onChange={e => { setAmount(e.target.value); setFormError(''); }}
-              required
-              aria-describedby={formError ? 'budget-form-error' : undefined}
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">Rp</span>
+              <input
+                id="budget-amount"
+                type="text"
+                inputMode="numeric"
+                className="input pl-9"
+                placeholder="3.600.000"
+                value={displayAmount}
+                onChange={handleAmountChange}
+                required
+                aria-describedby={formError ? 'budget-form-error' : undefined}
+              />
+            </div>
           </div>
 
           <div>
@@ -207,17 +228,19 @@ export default function BudgetSection({ initialBudgets }: Props) {
       toast('Budget baru berhasil dibuat.');
       setShowForm(false);
     } catch (err) {
-  console.error('[create_budget]', err);
-  const msg = err instanceof Error ? err.message : 'Gagal membuat budget.';
-  // Terjemahkan pesan teknis dari server
-  if (msg.includes('tidak boleh lebih awal')) {
-    toast('Tanggal mulai tidak boleh lebih awal dari budget yang sedang aktif.', 'error');
-  } else if (msg.includes('Amount must be greater than 0')) {
-    toast('Jumlah budget harus lebih dari 0.', 'error');
-  } else {
-    toast('Gagal membuat budget. Coba lagi.', 'error');
-  }
+      console.error('[create_budget]', err);
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('tidak boleh lebih awal')) {
+        toast('Tanggal mulai tidak boleh lebih awal dari budget yang sedang aktif.', 'error');
+      } else if (msg.includes('Amount must be greater than 0')) {
+        toast('Jumlah budget harus lebih dari 0.', 'error');
+      } else {
+        toast('Gagal membuat budget. Silakan coba lagi.', 'error');
+      }
+    } finally {
+      setSubmitting(false);
     }
+  }
 
   return (
     <div className="card p-6">
@@ -303,4 +326,4 @@ export default function BudgetSection({ initialBudgets }: Props) {
       </p>
     </div>
   );
-                }
+}
