@@ -205,7 +205,7 @@ export default function ReportManager({ initialReports, userId, allBudgets }: Pr
     user_id: userId,
     title: title.trim().slice(0, 200),
     date_from: budget.start_date,        
-    date_to: new Date().toISOString().split('T')[0],
+    date_to: budget.end_date ?? new Date().toISOString().split('T')[0],
     budget_created_at: budget.created_at,
   })
   .select()
