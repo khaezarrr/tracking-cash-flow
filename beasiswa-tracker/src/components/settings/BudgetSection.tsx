@@ -207,12 +207,17 @@ export default function BudgetSection({ initialBudgets }: Props) {
       toast('Budget baru berhasil dibuat.');
       setShowForm(false);
     } catch (err) {
-      console.error('[create_budget]', err);
-      toast('Gagal membuat budget. Coba lagi.', 'error');
-    } finally {
-      setSubmitting(false);
-    }
+  console.error('[create_budget]', err);
+  const msg = err instanceof Error ? err.message : 'Gagal membuat budget.';
+  // Terjemahkan pesan teknis dari server
+  if (msg.includes('tidak boleh lebih awal')) {
+    toast('Tanggal mulai tidak boleh lebih awal dari budget yang sedang aktif.', 'error');
+  } else if (msg.includes('Amount must be greater than 0')) {
+    toast('Jumlah budget harus lebih dari 0.', 'error');
+  } else {
+    toast('Gagal membuat budget. Coba lagi.', 'error');
   }
+    }
 
   return (
     <div className="card p-6">
