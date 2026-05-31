@@ -22,7 +22,6 @@ interface ReportFormModalProps {
   onClose: () => void;
 }
 
-/** Human-readable label for the dropdown option. */
 function budgetLabel(budget: Budget): string {
   const start = formatDate(budget.start_date);
   if (budget.end_date === null) {
@@ -36,7 +35,6 @@ function ReportFormModal({ submitting, allBudgets, onSubmit, onClose }: ReportFo
   const [title, setTitle] = useState('');
   const [formError, setFormError] = useState('');
 
-  // Default to the active budget (end_date === null); fall back to most recent.
   const defaultBudget = allBudgets.find(b => b.end_date === null) ?? allBudgets[0] ?? null;
   const [selectedId, setSelectedId] = useState<string>(defaultBudget?.id ?? '');
 
@@ -83,7 +81,6 @@ function ReportFormModal({ submitting, allBudgets, onSubmit, onClose }: ReportFo
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate>
-          {/* Report title */}
           <div>
             <label htmlFor="report-title" className="label">Judul Laporan</label>
             <input
@@ -99,14 +96,12 @@ function ReportFormModal({ submitting, allBudgets, onSubmit, onClose }: ReportFo
           </div>
 
           {allBudgets.length === 0 ? (
-            /* No budgets at all */
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
               <p>Tidak ada budget. Buat budget terlebih dahulu di halaman Pengaturan.</p>
             </div>
           ) : (
             <>
-              {/* Budget selector */}
               <div>
                 <label htmlFor="budget-select" className="label">Budget</label>
                 <select
@@ -124,7 +119,6 @@ function ReportFormModal({ submitting, allBudgets, onSubmit, onClose }: ReportFo
                 </select>
               </div>
 
-              {/* Auto-derived period */}
               {selectedBudget && (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-600">
                   <p className="font-medium text-gray-700 mb-1">
@@ -181,9 +175,7 @@ export default function ReportManager({ initialReports, userId, allBudgets }: Pr
     setSubmitting(true);
 
     const today = new Date().toISOString().split('T')[0];
-    // Preserve existing convention: date_from = budget.created_at (timestamp),
-    // so the public RPC expense-filter still matches the correct budget.
-    const dateFrom = budget.start_date;  
+    const dateFrom = budget.start_date;
     const dateTo   = budget.end_date ?? today;
 
     const tempId = `temp-${Date.now()}`;
@@ -200,21 +192,21 @@ export default function ReportManager({ initialReports, userId, allBudgets }: Pr
     setShowForm(false);
 
     const { data, error } = await supabase
-  .from('reports')
-  .insert({
-    user_id: userId,
-    title: title.trim().slice(0, 200),
-    date_from: budget.start_date,        
-    date_to: budget.end_date ?? new Date().toISOString().split('T')[0],
-    budget_created_at: budget.created_at,
-  })
-  .select()
-  .single();
+      .from('reports')
+      .insert({
+        user_id: userId,
+        title: title.trim().slice(0, 200),
+        date_from: budget.start_date,
+        date_to: budget.end_date ?? today,
+        budget_created_at: budget.created_at,
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('[Create report]', error.message);
       setReports(prev => prev.filter(r => r.id !== tempId));
-      toast('Gagal membuat laporan. Coba lagi.', 'error');
+      toast('Gagal membuat laporan. Silakan coba lagi.', 'error');
     } else if (data) {
       setReports(prev => prev.map(r => r.id === tempId ? data : r));
       toast('Laporan berhasil dibuat.');
@@ -241,7 +233,7 @@ export default function ReportManager({ initialReports, userId, allBudgets }: Pr
         next.splice(backupIndex, 0, backup);
         return next;
       });
-      toast('Gagal menghapus laporan.', 'error');
+      toast('Gagal menghapus laporan. Silakan coba lagi.', 'error');
     } else {
       toast('Laporan dihapus. Link tidak lagi bisa diakses.');
     }
@@ -257,7 +249,7 @@ export default function ReportManager({ initialReports, userId, allBudgets }: Pr
       setTimeout(() => setCopiedToken(null), 2000);
       toast('Link berhasil disalin.');
     } catch {
-      toast('Gagal menyalin link.', 'error');
+      toast('Gagal menyalin link. Coba salin manual.', 'error');
     }
   }
 
