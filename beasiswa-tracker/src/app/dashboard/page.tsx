@@ -14,18 +14,21 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: budget, error: budgetError } = await supabase
+  // Ambil semua budget untuk cari active + next budget
+  const { data: allBudgets, error: budgetError } = await supabase
     .from('budgets')
     .select('*')
     .eq('user_id', user.id)
-    .is('end_date', null)
-    .single();
+    .order('start_date', { ascending: true });
 
-  if (budgetError && budgetError.code !== 'PGRST116') {
+  if (budgetError) {
     console.error('[Dashboard] budget fetch:', budgetError.message);
   }
 
-  const activeBudget = budget as Budget | null;
+  const activeBudget = (allBudgets?.find(b => b.end_date === null) ?? null) as Budget | null;
+  const nextBudget = activeBudget
+    ? allBudgets?.find(b => b.start_date > activeBudget.start_date) ?? null
+    : null;
 
   const expensesQuery = supabase
     .from('expenses')
@@ -36,6 +39,9 @@ export default async function DashboardPage() {
 
   if (activeBudget) {
     expensesQuery.gte('date', activeBudget.start_date);
+  }
+  if (nextBudget) {
+    expensesQuery.lt('date', nextBudget.start_date);
   }
 
   const { data: expensesData, error: expensesError } = await expensesQuery;
