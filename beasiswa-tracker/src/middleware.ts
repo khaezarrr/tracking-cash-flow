@@ -49,22 +49,22 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && isAuthPage) {
-    const next = request.nextUrl.searchParams.get('next');
+  const next = request.nextUrl.searchParams.get('next');
 
-    if (next && next.startsWith('/') && !next.startsWith('//')) {
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = next;
-      redirectUrl.search = '';
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    const { data: { session } } = await supabase.auth.getSession();
-    const role = session?.user?.app_metadata?.role;
-
+  if (next && next.startsWith('/') && !next.startsWith('//')) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
+    redirectUrl.pathname = next;
     redirectUrl.search = '';
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Baca role dari user.app_metadata (sudah ter-verify oleh getUser())
+  const role = user.app_metadata?.role;
+
+  const redirectUrl = request.nextUrl.clone();
+  redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
+  redirectUrl.search = '';
+  return NextResponse.redirect(redirectUrl);
   }
 
   if (user && isAdminRoute) {
