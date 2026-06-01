@@ -41,39 +41,31 @@ export async function middleware(request: NextRequest) {
 
   if (isStaticAsset) return supabaseResponse;
 
-  if (user && isAuthPage) {
-  const next = request.nextUrl.searchParams.get('next');
+  if (!user && !isAuthPage && !isPublicPrefix) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.searchParams.set('next', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
-  if (next && next.startsWith('/') && !next.startsWith('//')) {
+  if (user && isAuthPage) {
+    const next = request.nextUrl.searchParams.get('next');
+
+    if (next && next.startsWith('/') && !next.startsWith('//')) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = next;
+      redirectUrl.search = '';
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const role = user.app_metadata?.role;
+    console.log('[Middleware] app_metadata:', JSON.stringify(user.app_metadata));
+    console.log('[Middleware] role:', role);
+
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = next;
+    redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
     redirectUrl.search = '';
     return NextResponse.redirect(redirectUrl);
-  }
-
-  const role = user.app_metadata?.role;
-  console.log('[Middleware] user.app_metadata:', JSON.stringify(user.app_metadata));
-  console.log('[Middleware] role:', role);
-
-  const redirectUrl = request.nextUrl.clone();
-  redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
-  redirectUrl.search = '';
-  return NextResponse.redirect(redirectUrl);
-  }
-
-  // Baca role dari user.app_metadata (sudah ter-verify oleh getUser())
-  const role = user.app_metadata?.role;
-
-  const role = user.app_metadata?.role;
-console.log('[Middleware] app_metadata:', JSON.stringify(user.app_metadata));
-console.log('[Middleware] role:', role);
-
-const redirectUrl = request.nextUrl.clone();
-
-  const redirectUrl = request.nextUrl.clone();
-  redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
-  redirectUrl.search = '';
-  return NextResponse.redirect(redirectUrl);
   }
 
   if (user && isAdminRoute) {
