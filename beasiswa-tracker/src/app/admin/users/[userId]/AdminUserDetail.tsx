@@ -381,7 +381,7 @@ function EditBudgetModal({ budget, submitting, onSubmit, onClose }: EditBudgetMo
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate autoComplete="off">
           <div>
             <label htmlFor="budget-amount" className="label">Dana (Rp)</label>
             <input id="budget-amount" type="number" className="input" min="1" step="1" value={amount}
@@ -439,7 +439,7 @@ function ReactivateModal({ budget, submitting, onSubmit, onClose }: ReactivateMo
           Budget <strong>{formatRupiah(budget.amount)}</strong> akan diaktifkan kembali.
           Budget yang sedang aktif akan ditutup otomatis pada tanggal reaktivasi.
         </p>
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate autoComplete="off">
           <div>
             <label htmlFor="reactivate-start" className="label">Tanggal Mulai</label>
             <input id="reactivate-start" type="date" className="input" value={newStartDate} max={today}
