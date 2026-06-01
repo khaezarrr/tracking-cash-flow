@@ -80,7 +80,7 @@ function BudgetFormModal({ submitting, onSubmit, onClose }: BudgetFormModalProps
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate autoComplete="off">
           <div>
             <label htmlFor="budget-amount" className="label">Dana Beasiswa (Rp)</label>
             <div className="relative">
