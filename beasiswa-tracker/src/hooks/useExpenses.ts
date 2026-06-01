@@ -179,7 +179,7 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
       .range(fetchOffset, fetchOffset + pageSize - 1);
 
     if (activeBudgetStartDate) {
-      query = query.gte('created_at', activeBudgetStartDate);
+  query = query.gte('date', activeBudgetStartDate);
     }
 
     const { data, error } = await query;
