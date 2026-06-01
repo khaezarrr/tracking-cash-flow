@@ -25,9 +25,8 @@ export default async function ExpensesPage() {
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
 
-  // Filter pakai created_at budget — lebih akurat dari start_date
-  if (activeBudget?.created_at) {
-    query = query.gte('created_at', activeBudget.created_at);
+  if (activeBudget?.start_date) {
+    query = query.gte('date', activeBudget.start_date);
   }
 
   const { data: expenses, error, count } = await query;
@@ -43,7 +42,7 @@ export default async function ExpensesPage() {
         userId={user.id}
         totalCount={count ?? 0}
         pageSize={PAGE_SIZE}
-        activeBudgetStartDate={activeBudget?.created_at ?? null}
+        activeBudgetStartDate={activeBudget?.start_date ?? null}
       />
     </div>
   );
