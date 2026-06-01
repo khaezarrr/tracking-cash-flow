@@ -80,7 +80,7 @@ function ReportFormModal({ submitting, allBudgets, onSubmit, onClose }: ReportFo
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4" noValidate autoComplete="off">
           <div>
             <label htmlFor="report-title" className="label">Judul Laporan</label>
             <input
