@@ -35,7 +35,7 @@ export default async function DashboardPage() {
     .limit(500);
 
   if (activeBudget) {
-    expensesQuery.gte('created_at', activeBudget.created_at);
+    expensesQuery.gte('date', activeBudget.start_date);
   }
 
   const { data: expensesData, error: expensesError } = await expensesQuery;
