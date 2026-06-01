@@ -10,12 +10,19 @@ export default async function ExpensesPage() {
 
   if (!user) redirect('/login');
 
-  const { data: activeBudget } = await supabase
+  // Ambil semua budget untuk cari next budget start_date
+  const { data: allBudgets } = await supabase
     .from('budgets')
-    .select('start_date, created_at')
+    .select('id, start_date, end_date, created_at')
     .eq('user_id', user.id)
-    .is('end_date', null)
-    .single();
+    .order('start_date', { ascending: true });
+
+  const activeBudget = allBudgets?.find(b => b.end_date === null) ?? null;
+
+  // Cari budget berikutnya setelah budget aktif
+  const nextBudget = activeBudget
+    ? allBudgets?.find(b => b.start_date > activeBudget.start_date) ?? null
+    : null;
 
   let query = supabase
     .from('expenses')
@@ -27,6 +34,11 @@ export default async function ExpensesPage() {
 
   if (activeBudget?.start_date) {
     query = query.gte('date', activeBudget.start_date);
+  }
+
+  // Tambah upper bound dari next budget
+  if (nextBudget?.start_date) {
+    query = query.lt('date', nextBudget.start_date);
   }
 
   const { data: expenses, error, count } = await query;
@@ -43,6 +55,7 @@ export default async function ExpensesPage() {
         totalCount={count ?? 0}
         pageSize={PAGE_SIZE}
         activeBudgetStartDate={activeBudget?.start_date ?? null}
+        nextBudgetStartDate={nextBudget?.start_date ?? null}
       />
     </div>
   );
