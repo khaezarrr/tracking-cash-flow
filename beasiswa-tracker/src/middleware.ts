@@ -59,8 +59,6 @@ export async function middleware(request: NextRequest) {
     }
 
     const role = user.app_metadata?.role;
-    console.log('[Middleware] app_metadata:', JSON.stringify(user.app_metadata));
-    console.log('[Middleware] role:', role);
 
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
