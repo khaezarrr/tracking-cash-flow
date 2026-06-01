@@ -59,9 +59,14 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
     setLoadingExpenses(true);
     setBudgetExpenses([]);
 
+    console.log('[loadBudgetExpenses] budgetId:', budgetId);
+
     const { data, error } = await supabase.rpc('admin_get_budget_expenses', {
       p_budget_id: budgetId,
     });
+
+    console.log('[loadBudgetExpenses] data:', JSON.stringify(data));
+    console.log('[loadBudgetExpenses] error:', JSON.stringify(error));
 
     if (error) {
       console.error('[AdminBudgetExpenses]', error.message);
@@ -70,6 +75,7 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
       const expenses: Expense[] = (data ?? []).map((e: Omit<Expense, 'user_id'>) => ({
         ...e, user_id: userId,
       }));
+      console.log('[loadBudgetExpenses] mapped expenses:', expenses.length);
       setBudgetExpenses(expenses);
     }
     setLoadingExpenses(false);
@@ -119,6 +125,9 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
       }));
       toast('Budget berhasil diaktifkan kembali.');
       setReactivateTarget(null);
+      // Reset selected budget agar expense ter-refresh
+      setSelectedBudgetId(null);
+      setBudgetExpenses([]);
     }
     setReactivateSubmitting(false);
   }
@@ -183,7 +192,6 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
         Semua User
       </Link>
 
-      {/* Profile */}
       <section aria-labelledby="profile-heading">
         <div className="card p-6">
           <div className="flex items-start gap-4">
@@ -211,7 +219,6 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
         </div>
       </section>
 
-      {/* Budget + Expenses accordion */}
       <section aria-labelledby="budget-heading">
         <h2 id="budget-heading" className="text-lg font-semibold text-gray-900 mb-3">
           Riwayat Budget
@@ -222,12 +229,11 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
         ) : (
           <div className="space-y-3">
             {budgets.map(budget => {
-              const isActive    = budget.end_date === null;
-              const isExpanded  = selectedBudgetId === budget.id;
+              const isActive   = budget.end_date === null;
+              const isExpanded = selectedBudgetId === budget.id;
 
               return (
                 <div key={budget.id} className="card overflow-hidden">
-                  {/* Budget row */}
                   <div className="flex items-center justify-between px-4 py-3 gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -277,7 +283,6 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
                     </div>
                   </div>
 
-                  {/* Expandable expenses */}
                   {isExpanded && (
                     <div className="border-t border-gray-100 px-4 py-4">
                       {loadingExpenses ? (
@@ -304,7 +309,6 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
         )}
       </section>
 
-      {/* Modals */}
       {editBudgetTarget && (
         <EditBudgetModal
           budget={editBudgetTarget}
@@ -342,8 +346,6 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
     </div>
   );
 }
-
-// ─── Modal components ─────────────────────────────────────────────────────────
 
 interface EditBudgetModalProps {
   budget: AdminBudget; submitting: boolean;
@@ -455,4 +457,4 @@ function ReactivateModal({ budget, submitting, onSubmit, onClose }: ReactivateMo
       </div>
     </div>
   );
-}
+      }
