@@ -61,6 +61,9 @@ export default function AdminUserDetail({ userId, profile, initialBudgets }: Pro
 
     console.log('[loadBudgetExpenses] budgetId:', budgetId);
 
+    console.log('[Middleware] app_metadata:', JSON.stringify(user.app_metadata));
+    console.log('[Middleware] role:', role);
+
     const { data, error } = await supabase.rpc('admin_get_budget_expenses', {
       p_budget_id: budgetId,
     });
