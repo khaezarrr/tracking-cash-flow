@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { BookOpen } from 'lucide-react';
 
-// Fix #3: useSearchParams wajib dibungkus Suspense di Next.js 14 App Router
 function LoginForm() {
   const router = useRouter();
   const supabase = createClient();
@@ -18,8 +17,6 @@ function LoginForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Baca ?next= dari URL, validasi hanya terima path internal
-  // Cegah open redirect: /evil.com atau //evil.com ditolak
   const rawNext = searchParams.get('next') ?? '';
   const redirectTo =
     rawNext.startsWith('/') && !rawNext.startsWith('//')
@@ -27,33 +24,25 @@ function LoginForm() {
       : '/dashboard';
 
   async function handleLogin(e: React.FormEvent) {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
-    setError('Email atau password salah.');
-    setLoading(false);
-    return;
-  }
+    if (error) {
+      setError('Email atau password salah.');
+      setLoading(false);
+      return;
+    }
 
-  // Cek role dari app_metadata
-  const role = data.user?.app_metadata?.role;
+    const role = data.user?.app_metadata?.role;
 
-  if (redirectTo !== '/dashboard') {
-    // Ada ?next= param, ikuti
-    router.push(redirectTo);
-  } else {
-    // Default redirect berdasarkan role
-    router.push(role === 'admin' ? '/admin' : '/dashboard');
-  }
-  router.refresh();
-  }
-
-    // Fix #3: redirect ke tujuan awal user, bukan selalu /dashboard
-    router.push(redirectTo);
+    if (redirectTo !== '/dashboard') {
+      router.push(redirectTo);
+    } else {
+      router.push(role === 'admin' ? '/admin' : '/dashboard');
+    }
     router.refresh();
   }
 
@@ -70,7 +59,7 @@ function LoginForm() {
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-6">Masuk ke akun</h2>
 
-        <form onSubmit={handleLogin} className="space-y-4" noValidate>
+        <form onSubmit={handleLogin} className="space-y-4" noValidate autoComplete="off">
           <div>
             <label htmlFor="email" className="label">Email</label>
             <input
