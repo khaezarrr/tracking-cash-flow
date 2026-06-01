@@ -49,12 +49,26 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && isAuthPage) {
-    const next = request.nextUrl.searchParams.get('next') ?? '/dashboard';
-    const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
-    const dashUrl = request.nextUrl.clone();
-    dashUrl.pathname = safeNext;
-    dashUrl.search = '';
-    return NextResponse.redirect(dashUrl);
+  const next = request.nextUrl.searchParams.get('next');
+
+  if (next && next.startsWith('/') && !next.startsWith('//')) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = next;
+    redirectUrl.search = '';
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Cek role untuk default redirect
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const redirectUrl = request.nextUrl.clone();
+  redirectUrl.pathname = profile?.role === 'admin' ? '/admin' : '/dashboard';
+  redirectUrl.search = '';
+  return NextResponse.redirect(redirectUrl);
   }
 
   if (user && isAdminRoute) {
