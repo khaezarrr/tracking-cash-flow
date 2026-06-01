@@ -27,17 +27,30 @@ function LoginForm() {
       : '/dashboard';
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      setError('Email atau password salah.');
-      setLoading(false);
-      return;
-    }
+  if (error) {
+    setError('Email atau password salah.');
+    setLoading(false);
+    return;
+  }
+
+  // Cek role dari app_metadata
+  const role = data.user?.app_metadata?.role;
+
+  if (redirectTo !== '/dashboard') {
+    // Ada ?next= param, ikuti
+    router.push(redirectTo);
+  } else {
+    // Default redirect berdasarkan role
+    router.push(role === 'admin' ? '/admin' : '/dashboard');
+  }
+  router.refresh();
+  }
 
     // Fix #3: redirect ke tujuan awal user, bukan selalu /dashboard
     router.push(redirectTo);
