@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS   = ['/login', '/register'];
+const PUBLIC_PATHS    = ['/login', '/register'];
 const PUBLIC_PREFIXES = ['/r/'];
 
 export async function middleware(request: NextRequest) {
@@ -41,46 +41,30 @@ export async function middleware(request: NextRequest) {
 
   if (isStaticAsset) return supabaseResponse;
 
-  if (user && isAuthPage) {
-  const next = request.nextUrl.searchParams.get('next');
-
-  if (next && next.startsWith('/') && !next.startsWith('//')) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = next;
-    redirectUrl.search = '';
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  const { data: { session } } = await supabase.auth.getSession();
-  const role = session?.user?.app_metadata?.role;
-
-  const redirectUrl = request.nextUrl.clone();
-  redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
-  redirectUrl.search = '';
-  return NextResponse.redirect(redirectUrl);
+  if (!user && !isAuthPage && !isPublicPrefix) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.searchParams.set('next', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   if (user && isAuthPage) {
-  const next = request.nextUrl.searchParams.get('next');
+    const next = request.nextUrl.searchParams.get('next');
 
-  if (next && next.startsWith('/') && !next.startsWith('//')) {
+    if (next && next.startsWith('/') && !next.startsWith('//')) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = next;
+      redirectUrl.search = '';
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const role = session?.user?.app_metadata?.role;
+
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = next;
+    redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
     redirectUrl.search = '';
     return NextResponse.redirect(redirectUrl);
-  }
-
-  // Cek role untuk default redirect
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  const redirectUrl = request.nextUrl.clone();
-  redirectUrl.pathname = profile?.role === 'admin' ? '/admin' : '/dashboard';
-  redirectUrl.search = '';
-  return NextResponse.redirect(redirectUrl);
   }
 
   if (user && isAdminRoute) {
