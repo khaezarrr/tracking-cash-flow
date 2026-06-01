@@ -16,9 +16,10 @@ interface UseExpensesOptions {
   totalCount: number;
   pageSize: number;
   activeBudgetStartDate: string | null;
+  nextBudgetStartDate: string | null;
 }
 
-export function useExpenses({ initialExpenses, userId, totalCount, pageSize, activeBudgetStartDate }: UseExpensesOptions) {
+export function useExpenses({ initialExpenses, userId, totalCount, pageSize, activeBudgetStartDate, nextBudgetStartDate }: UseExpensesOptions) {
   const supabase = createClient();
   const { toast } = useToast();
 
@@ -179,7 +180,10 @@ export function useExpenses({ initialExpenses, userId, totalCount, pageSize, act
       .range(fetchOffset, fetchOffset + pageSize - 1);
 
     if (activeBudgetStartDate) {
-  query = query.gte('date', activeBudgetStartDate);
+      query = query.gte('date', activeBudgetStartDate);
+    }
+    if (nextBudgetStartDate) {
+      query = query.lt('date', nextBudgetStartDate);
     }
 
     const { data, error } = await query;
