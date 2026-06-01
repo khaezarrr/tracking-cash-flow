@@ -15,15 +15,16 @@ interface Props {
   totalCount: number;
   pageSize: number;
   activeBudgetStartDate: string | null;
+  nextBudgetStartDate: string | null;
 }
 
-export default function ExpenseManager({ initialExpenses, userId, totalCount, pageSize, activeBudgetStartDate }: Props) {
+export default function ExpenseManager({ initialExpenses, userId, totalCount, pageSize, activeBudgetStartDate, nextBudgetStartDate }: Props) {
   const {
     expenses, filtered, totalFiltered, serverTotal, fetchOffset, optimisticIds, hasMore,
     showForm, editTarget, submitting, deleteTarget, deleting, loadingMore, search, filterCat,
     openAddForm, openEditForm, closeForm, setDeleteTarget, cancelDelete,
     handleSubmit, handleDelete, handleLoadMore, setSearch, setFilterCat,
-  } = useExpenses({ initialExpenses, userId, totalCount, pageSize, activeBudgetStartDate });
+  } = useExpenses({ initialExpenses, userId, totalCount, pageSize, activeBudgetStartDate, nextBudgetStartDate });
 
   return (
     <div className="space-y-6">
