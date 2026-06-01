@@ -64,6 +64,12 @@ export async function middleware(request: NextRequest) {
   // Baca role dari user.app_metadata (sudah ter-verify oleh getUser())
   const role = user.app_metadata?.role;
 
+  const role = user.app_metadata?.role;
+console.log('[Middleware] app_metadata:', JSON.stringify(user.app_metadata));
+console.log('[Middleware] role:', role);
+
+const redirectUrl = request.nextUrl.clone();
+
   const redirectUrl = request.nextUrl.clone();
   redirectUrl.pathname = role === 'admin' ? '/admin' : '/dashboard';
   redirectUrl.search = '';
